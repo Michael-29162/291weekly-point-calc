@@ -2,6 +2,14 @@ const EXCLUDE_SHEETS = ['汇总'];
 const GROUP_SHEET = '分组';
 const DAY_RE = /(?:星期|周)[一二三四五六日天]/;
 
+function ensureExcelJS(){
+  if (typeof ExcelJS === 'undefined') {
+    alert('表格组件未加载：请确认 exceljs.min.js 与本页面在同一目录');
+    return false;
+  }
+  return true;
+}
+
 const dz = document.getElementById('dz');
 const fileInput = document.getElementById('file');
 
@@ -63,6 +71,7 @@ function toRowMap(wb){
 }
 
 function handleFile(file) {
+  if (!ensureExcelJS()) return;
   const reader = new FileReader();
   reader.onload = async e => {
     try {
@@ -404,6 +413,7 @@ function renderGroupRank(glist) {
 function datedName(prefix){ const t=new Date(),p=n=>String(n).padStart(2,'0'); return `${prefix}_${t.getFullYear()}${p(t.getMonth()+1)}${p(t.getDate())}.xlsx`; }
 
 async function exportAoa(aoa, sheetName, fileName, colWidths){
+  if (!ensureExcelJS()) return;
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(sheetName);
   if(colWidths) ws.columns = colWidths.map(w=>({width:w}));
@@ -428,6 +438,7 @@ document.getElementById('downloadRankBtn').addEventListener('click', () => {
 });
 // 小组排名导出：Sheet1 汇总（得分/失分拆分）+ Sheet2 成员得分失分贡献明细，带样式
 async function exportGroupWorkbook(glist, catSheets, groupInit) {
+  if (!ensureExcelJS()) return;
   const C = {
     green: 'FF059669', greenDeep: 'FF047857', red: 'FFDC2626', ink: 'FF16181F',
     muted: 'FF6B7280', headerBg: 'FF059669', bandBg: 'FFECFDF5',
