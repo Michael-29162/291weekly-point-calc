@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>积分周表生成器 · 291工具箱</title>
+<link rel="stylesheet" href="style.css">
+<script src="../exceljs.min.js"></script>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <div class="badge">✦ 291 CLASS TOOLBOX</div>
+    <h1>积分周表生成器</h1>
+    <p>上传积分统计表 · 自动汇总每日分数 · 个人与小组排名一键生成</p>
+  </div>
+
+  <!-- 上传 -->
+  <div class="card" id="uploadCard">
+    <div class="dropzone" id="dz">
+      <div class="up-ico">📊</div>
+      <div class="t1"><strong>点击选择</strong> 或拖拽 Excel 文件到此处</div>
+      <div class="t2">支持 .xlsx 格式（旧版 .xls 请先用 Excel 另存为 .xlsx）</div>
+    </div>
+    <input type="file" id="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+  </div>
+
+  <!-- 重新上传条 -->
+  <div class="card reupload-bar hidden" id="reuploadBar">
+    <span style="font-size:13px;color:var(--muted);" id="reuploadFileName"></span>
+    <button class="btn purple" onclick="resetAll()">📂 重新上传文件</button>
+  </div>
+
+  <!-- 初始分设置 -->
+  <div class="card hidden" id="initScoreCard">
+    <div class="card-head">
+      <div class="card-title">
+        <span class="ico purple">⚙️</span>
+        <span class="txt">初始分设置<small>BASE SCORE</small></span>
+      </div>
+    </div>
+    <div class="init-grid">
+      <div class="init-item">
+        <span class="init-label">个人初始分</span>
+        <span class="init-input-wrap">
+          <input type="number" id="personalInit" value="0" step="1">
+          <em>分 / 人</em>
+        </span>
+        <small class="init-hint">每位同学在周总分基础上统一加此分，仅影响个人排名</small>
+      </div>
+      <div class="init-item">
+        <span class="init-label">小组初始分</span>
+        <span class="init-input-wrap">
+          <input type="number" id="groupInit" value="0" step="1">
+          <em>分 / 组</em>
+        </span>
+        <small class="init-hint">每个小组在组总分基础上统一加此分，仅影响小组排名</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- 个人领奖台 -->
+  <div class="card hidden" id="podiumCard">
+    <div class="card-head">
+      <div class="card-title">
+        <span class="ico gold">🏆</span>
+        <span class="txt">个人前三名<small>INDIVIDUAL PODIUM</small></span>
+      </div>
+    </div>
+    <div class="podium-wrap"><div class="podium" id="podium"></div></div>
+  </div>
+
+  <!-- 个人排名表 -->
+  <div class="card hidden" id="rankCard">
+    <div class="card-head">
+      <div class="card-title">
+        <span class="ico purple">📋</span>
+        <span class="txt">个人排名表<small>FULL RANKING</small></span>
+      </div>
+      <div class="toolbar" style="margin:0">
+        <button class="btn purple" id="downloadRankBtn">⬇ 下载个人排名</button>
+        <span class="stat" id="rankStat"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="rankTbl">
+        <thead><tr id="rankHead"></tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 小组领奖台 -->
+  <div class="card hidden" id="groupPodiumCard">
+    <div class="card-head">
+      <div class="card-title">
+        <span class="ico green">👥</span>
+        <span class="txt">小组前三名<small>GROUP PODIUM</small></span>
+      </div>
+    </div>
+    <div class="gpodium" id="groupPodium"></div>
+  </div>
+
+  <!-- 小组排名表 -->
+  <div class="card hidden" id="groupRankCard">
+    <div class="card-head">
+      <div class="card-title">
+        <span class="ico green">📊</span>
+        <span class="txt">小组排名表<small>GROUP RANKING</small></span>
+      </div>
+      <div class="toolbar" style="margin:0">
+        <button class="btn green" id="downloadGroupBtn">⬇ 下载小组排名</button>
+        <span class="stat" id="groupStat"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="groupTbl">
+        <thead><tr id="groupHead"></tr></thead>
+        <tbody id="groupBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 积分周表 -->
+  <div class="card hidden" id="weekCard">
+    <div class="card-head">
+      <div class="card-title">
+        <span class="ico amber">📈</span>
+        <span class="txt">积分周表<small>WEEKLY SUMMARY</small></span>
+      </div>
+      <div class="toolbar" style="margin:0">
+        <button class="btn amber" id="downloadWeekBtn">⬇ 下载积分周表</button>
+        <span class="stat" id="weekStat"></span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="weekTbl">
+        <thead><tr id="weekHead"></tr></thead>
+        <tbody id="weekBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" id="emptyCard">
+    <div class="empty">📂 上传 Excel 后自动生成结果</div>
+  </div>
+
+</div>
+
+<footer class="page-footer">由29162开发</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
