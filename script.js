@@ -172,7 +172,7 @@ function processWorkbook(data, fileName) {
   const groupWarnings = [...(groups.warnings || [])];
   groups.forEach(g => {
     const miss = [...new Set(g.members.filter(sid => !students.has(sid)))];
-    if (miss.length) groupWarnings.push(`${g.name} 有 ${miss.length} 个学号不在积分表中：${miss.join('、')}（不计入组总分）`);
+    if (miss.length) groupWarnings.push(`${g.name} 有 ${miss.length} 个学号不在积分表中：${miss.join('、')}（不计入组总分与人均分）`);
   });
 
   // 计算完成后，若发现分数列中有无法识别的特殊符号/文字，弹窗提示
@@ -229,7 +229,8 @@ function computeAndRender() {
   rankRows = [['名次', '学号', '姓名', '初始分', '周总分']];
   list.forEach(it => rankRows.push([it.rank, it.sid, it.name, it.init, it.total]));
 
-  // 小组排名：组总分 = 成员每日合计之和 + 小组初始分（不含个人初始分，互不干扰）
+  // 小组排名：按人均分排名。净贡献合计 = 成员每日合计之和（不含个人初始分，互不干扰）；
+  // 组总分 = 净贡献合计 + 小组初始分；人均分 = 组总分 ÷ 人数。
   // 同时组装成员贡献明细：每人 得分(pos) / 失分(loss) / 净贡献(net) / 分类净分(cats)
   const groupList = groups.map(g => {
     const members = g.members.map(sid => {
@@ -247,15 +248,16 @@ function computeAndRender() {
     const posSum = members.reduce((t, m) => t + m.pos, 0);
     const lossSum = members.reduce((t, m) => t + m.loss, 0);
     const total = netSum + groupInit;
+    const avg = members.length ? total / members.length : 0;
     return {
-      name: g.name, count: members.length, init: groupInit, total: total,
-      avg: members.length ? total / members.length : 0,
+      name: g.name, count: members.length, init: groupInit, total: total, avg: avg,
       members: members, posSum: posSum, lossSum: lossSum, netSum: netSum
     };
   });
-  groupList.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'zh'));
+  // 主排序指标：人均分降序；平分比组总分，再比小组名
+  groupList.sort((a, b) => b.avg - a.avg || b.total - a.total || a.name.localeCompare(b.name, 'zh'));
   let grank = 0, gprev = null;
-  groupList.forEach((it, i) => { if (gprev === null || it.total !== gprev) { grank = i + 1; gprev = it.total; } it.rank = grank; });
+  groupList.forEach((it, i) => { if (gprev === null || it.avg !== gprev) { grank = i + 1; gprev = it.avg; } it.rank = grank; });
   groupDetail = groupList;
   groupRows = [['名次', '小组', '人数', '初始分', '组总分', '人均分']];
   groupList.forEach(it => groupRows.push([it.rank, it.name, it.count, it.init, it.total, Math.round(it.avg * 100) / 100]));
@@ -385,8 +387,8 @@ function renderGroupPodium(glist) {
       </div>
       <div class="gblock">第${who.rank}名</div>`;
     seat.querySelector('.gname').textContent = who.name;
-    seat.querySelector('.gscore').textContent = fmt(who.total) + ' 分';
-    seat.querySelector('.gcount').textContent = who.count + ' 人 · 人均 ' + fmt2(who.avg);
+    seat.querySelector('.gscore').textContent = fmt2(who.avg) + ' 分/人';
+    seat.querySelector('.gcount').textContent = who.count + ' 人 · 组总分 ' + fmt(who.total);
     box.appendChild(seat);
   });
 }
@@ -470,13 +472,13 @@ async function exportGroupWorkbook(glist, catSheets, groupInit) {
   ws1.columns = [8, 14, 8, 10, 12, 12, 12, 10].map(w => ({ width: w }));
   ws1.mergeCells(1, 1, 1, h1.length);
   const t1 = ws1.getCell(1, 1);
-  t1.value = '小组排名汇总';
+  t1.value = '小组排名汇总（按人均分排名）';
   t1.font = { size: 15, bold: true, color: { argb: C.greenDeep } };
   t1.alignment = center;
   ws1.getRow(1).height = 30;
   ws1.mergeCells(2, 1, 2, h1.length);
   const s1 = ws1.getCell(2, 1);
-  s1.value = `小组初始分 ${fmt(groupInit)} 分/组；组总分 = 得分合计 − 失分合计 + 初始分`;
+  s1.value = `小组初始分 ${fmt(groupInit)} 分/组；组总分 = 得分合计 − 失分合计 + 初始分；人均分 = 组总分 ÷ 人数，排名按人均分`;
   s1.font = { size: 10.5, color: { argb: C.muted } };
   s1.alignment = center;
   h1.forEach((h, j) => {
@@ -500,19 +502,24 @@ async function exportGroupWorkbook(glist, catSheets, groupInit) {
     colorSigned(ws1.getCell(r, 5), it.posSum, C.green);
     colorSigned(ws1.getCell(r, 6), it.lossSum, C.red);
     colorNet(ws1.getCell(r, 7), it.total);
+    // 主指标为人均分：人均分列加粗着色，作为排名依据
+    colorNet(ws1.getCell(r, 8), it.avg);
     if (it.rank === 1) shadeRow(ws1, r, h1.length, C.goldBg);
     else if (it.rank === 2) shadeRow(ws1, r, h1.length, C.silverBg);
     else if (it.rank === 3) shadeRow(ws1, r, h1.length, C.bronzeBg);
     r++;
   });
   const initAll = fmt(groupInit * glist.length);
-  const tot = ['合计', '', gCnt, initAll, fmt(gPos), fmt(gLoss), fmt(gNet + groupInit * glist.length), ''];
+  const grandTotal = gNet + groupInit * glist.length;
+  const grandAvg = gCnt ? Math.round((grandTotal / gCnt) * 100) / 100 : '';
+  const tot = ['合计', '', gCnt, initAll, fmt(gPos), fmt(gLoss), fmt(grandTotal), grandAvg];
   tot.forEach((v, j) => {
     const c = ws1.getCell(r, j + 1);
     c.value = v; c.border = border; c.alignment = center;
     c.font = { bold: true, color: { argb: C.greenDeep }, size: 11 };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.bandBg } };
   });
+  if (typeof grandAvg === 'number') ws1.getCell(r, 8).numFmt = '0.00';
   ws1.views = [{ state: 'frozen', ySplit: 3 }];
 
   // ===== Sheet2 成员贡献明细 =====
@@ -540,7 +547,7 @@ async function exportGroupWorkbook(glist, catSheets, groupInit) {
   glist.forEach(it => {
     ws2.mergeCells(rr, 1, rr, allCols.length);
     const band = ws2.getCell(rr, 1);
-    band.value = `${it.name} · 小组第${it.rank}名 · ${it.count}人 · 得分 +${fmt(it.posSum)} · 失分 −${fmt(it.lossSum)} · 净贡献 ${fmt(it.netSum)}`;
+    band.value = `${it.name} · 小组第${it.rank}名 · ${it.count}人 · 得分 +${fmt(it.posSum)} · 失分 −${fmt(it.lossSum)} · 净贡献 ${fmt(it.netSum)} · 组总分 ${fmt(it.total)} · 人均 ${fmt2(it.avg)}`;
     band.font = { bold: true, size: 12, color: { argb: C.greenDeep } };
     band.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C.bandBg } };
     band.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
